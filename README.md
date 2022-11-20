@@ -1,5 +1,5 @@
 <div align="center">
-<img src="images/fakeout.png" alt="logo"></img>
+<img src="images/FakeOut.png" alt="logo"></img>
 </div>
 
 
