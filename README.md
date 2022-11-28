@@ -5,7 +5,7 @@
 <!-- # FakeOut -->
 # FakeOut: Leveraging Out-of-domain Self-supervision for Video Deepfake Detection
 
-This is Haiku & Jax implementation of the <i>FakeOut</i> paper.
+This is a Haiku & Jax implementation of the <i>FakeOut</i> paper.
 
 <p> 
 </p>
