@@ -3,7 +3,7 @@
 </div>
 
 <!-- # FakeOut -->
-# FakeOut: Leveraging Out-of-domain Self-supervision for Video Deepfake Detection
+# FakeOut: Leveraging Out-of-domain Self-supervision for Multi-modal Video Deepfake Detection
 
 This is a Haiku & Jax implementation of the <i>FakeOut</i> paper.
 
