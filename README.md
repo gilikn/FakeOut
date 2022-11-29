@@ -1,5 +1,5 @@
 <div align="center">
-<img src="fakeout_logo.svg" alt="logo" width=500></img>
+<img src="images/fakeout_logo.svg" alt="logo" width=500></img>
 </div>
 
 <!-- # FakeOut -->
@@ -10,7 +10,7 @@ This is a Haiku & Jax implementation of the <i>FakeOut</i> paper.
 <p> 
 </p>
 <div align="center">
-<img src="Architecture.svg" alt="architecture"></img>
+<img src="images/Architecture.svg" alt="architecture"></img>
 </div>
 <p> 
 </p>
