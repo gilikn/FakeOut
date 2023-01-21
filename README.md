@@ -34,7 +34,7 @@ pip install requirements.txt
 ```
 Prepare your dataset using the script:
 ```
-python fakeout/data/data_preperation.py
+python fakeout/data/data_preparation.py
     --dataset_name {face_forensics, dfdc, deeper_forensics, face_shifter, celeb}
     --split {train, test}
     --videos_path /path/to/facepipe/output
@@ -47,10 +47,9 @@ For inference, execute the following script (DFDC test-set running example):
 python fakeout/inference.py
     --model_path /local/path/to/checkpoint
     --dataset_name {face_forensics, dfdc, deeper_forensics, face_shifter, celeb}
-    --use_audio
-    --mlp_first_layer_size
-    --num_test_windows
-    -- 
+    --use_audio {true, false}
+    --mlp_first_layer_size {6144 (for Video&Audio TSM-50x2), 4096 (for Video TSMx2)}
+    --num_test_windows {e.g. 10}
 ```
 For fine-tuning, execute the following script (FF++ train-set running example):
 ```
