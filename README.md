@@ -39,25 +39,23 @@ python fakeout/data/data_preparation.py
     --split {train, test}
     --videos_path /path/to/facepipe/output
 ```
-Our checkpoints are made available in the following link:
-```
-```
+Our checkpoints are made available in the following links:
+
+[FakeOut TSM-50x2 (V&A)](https://drive.google.com/file/d/1uAL2vimRs30p3oZ3BMIxvyde2icAadXi/view?usp=share_link)
+
 For inference, execute the following script (DFDC test-set running example):
 ```
 python fakeout/inference.py
-    --model_path /local/path/to/checkpoint
+    --checkpoint_path /local/path/to/checkpoint
     --dataset_name {face_forensics, dfdc, deeper_forensics, face_shifter, celeb}
-    --use_audio {true, false}
-    --mlp_first_layer_size {6144 (for Video&Audio TSM-50x2), 4096 (for Video TSMx2)}
+    --use_audio {True, False}
+    --mlp_first_layer_size {6144 (for TSM-50x2 (V&A)), 4096 (for TSM-50x2 (V))}
     --num_test_windows {e.g. 10}
 ```
 For fine-tuning, execute the following script (FF++ train-set running example):
 ```
 Will be availabe soon...
 ```
-
-
-
 
 
 ## BibTex

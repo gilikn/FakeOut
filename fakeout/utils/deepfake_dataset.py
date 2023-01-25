@@ -39,9 +39,10 @@ import tensorflow_datasets.public_api as tfds
 from absl import logging
 
 # for regular run
-from fakeout.data.data_config import DATASET_CONFIG, RELATIVE_PATH, AUDIO_FILES_JSON, LABELS_PATH
+from data.data_config import DATASET_CONFIG, RELATIVE_PATH, AUDIO_FILES_JSON, LABELS_PATH, DIRECTORY_NAME
 
-SPLITS_PATH = ("{RELATIVE_PATH}/train_test_split.zip")
+SPLITS_PATH = ("{RELATIVE_PATH}/tmp/downloads/extracted/ZIP.train_test_split.zip")
+VIDEOS_PATH = ("{RELATIVE_PATH}/tmp/downloads/extracted/ZIP.{DIRECTORY_NAME}_{split}.zip")
 _LABELS_PATH = f"fakeout/data/labels.txt"
 
 
@@ -69,6 +70,8 @@ class DeepfakeConfig(tfds.core.BuilderConfig):
         )
         if (width is None) ^ (height is None):
             raise ValueError('Either both dimensions should be set, or none of them')
+        self.width = width
+        self.height = height
 
 
 class Deepfake(tfds.core.GeneratorBasedBuilder):
@@ -78,13 +81,14 @@ class Deepfake(tfds.core.GeneratorBasedBuilder):
     """
 
     def __init__(self, dataset_name, labels_path=None, train=True, audio_modality=False, **kwargs):
+        self.audio_modality = audio_modality
         super().__init__(**kwargs)
         self.dataset_name = dataset_name
         self.train = train
         self.labels_path = labels_path
-        self.audio_modality = audio_modality
         self.dataset_config = DATASET_CONFIG[self.dataset_name]
         self.dataset_relative_path = self.dataset_config[RELATIVE_PATH]
+        self.dataset_directory_name = self.dataset_config[DIRECTORY_NAME]
         if path.exists(os.path.join(self.dataset_relative_path, AUDIO_FILES_JSON)):
             with open(os.path.join(self.dataset_relative_path, AUDIO_FILES_JSON), 'rb') as f:
                 self.proper_audio_files = json.load(f)
@@ -93,8 +97,7 @@ class Deepfake(tfds.core.GeneratorBasedBuilder):
 
     def _info(self):
         ffmpeg_extra_args = ('-qscale:v', '2', '-r', '29', '-t', '00:00:59')
-
-        video_shape = (None, None, None, 3)
+        video_shape = (None, 224, 224, 3)
         labels_names_file = _LABELS_PATH
         if self.audio_modality:
             features = tfds.features.FeaturesDict({
@@ -120,20 +123,17 @@ class Deepfake(tfds.core.GeneratorBasedBuilder):
         )
 
     def _split_generators(self, dl_manager):
-        urls_to_download = {
-            'videos': "",
-            'splits': SPLITS_PATH.format(RELATIVE_PATH=RELATIVE_PATH),
-        }
-        downloaded_urls = dl_manager.extract(urls_to_download)
         if not self.train:
             return [
                 tfds.core.SplitGenerator(
                     name=tfds.Split.TEST,
                     gen_kwargs={
                         'videos_dir':
-                            downloaded_urls['videos'],
+                            VIDEOS_PATH.format(RELATIVE_PATH=self.dataset_relative_path,
+                                               DIRECTORY_NAME=self.dataset_directory_name,
+                                               split='test'),
                         'splits_dir':
-                            downloaded_urls['splits'],
+                            SPLITS_PATH.format(RELATIVE_PATH=self.dataset_relative_path),
                         'data_list':
                             'testlist.txt',
                     }),
@@ -144,9 +144,11 @@ class Deepfake(tfds.core.GeneratorBasedBuilder):
                     name=tfds.Split.TRAIN,
                     gen_kwargs={
                         'videos_dir':
-                            downloaded_urls['videos'],
+                            VIDEOS_PATH.format(RELATIVE_PATH=self.dataset_relative_path,
+                                               DIRECTORY_NAME=self.dataset_directory_name,
+                                               split='train'),
                         'splits_dir':
-                            downloaded_urls['splits'],
+                            SPLITS_PATH.format(RELATIVE_PATH=self.dataset_relative_path),
                         'data_list':
                             'trainlist.txt',
                     })
@@ -192,7 +194,7 @@ class Deepfake(tfds.core.GeneratorBasedBuilder):
             else:  # self.labels_path is not None:
                 VIDEO_LABELS_PD = pd.read_csv(self.labels_path)
 
-            label = int(VIDEO_LABELS_PD[VIDEO_LABELS_PD['filename'] == file_name]['label'].iloc[0])
+            label = int(VIDEO_LABELS_PD[VIDEO_LABELS_PD['filename'] == file_name + '.mp4']['label'].iloc[0])
 
             if self.audio_modality:
                 yield path, {'video': video_path,

@@ -7,9 +7,10 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_io as tfio
+from sklearn.metrics import roc_curve
 
-from fakeout.data.data_config import WAV_BITRATE, FPS, DATASET_FOLDER, LABELS_PATH
-from fakeout.utils import deepfake_dataset_new
+from data.data_config import WAV_BITRATE, FPS, DATASET_FOLDER, LABELS_PATH
+from utils import deepfake_dataset
 
 
 def define_usable_audio(ex_tfds, files_in_dir, FLAGS, proper_audio_files, train=True):
@@ -54,12 +55,13 @@ def get_dummy_data(FLAGS):
 def generate_dataset(dset_config, dataset_configuration, model_config, dataset_name, FLAGS, train=True):
     dataset_folder = dataset_configuration.get(DATASET_FOLDER)
     labels_path = dataset_configuration.get(LABELS_PATH)
-    builder = deepfake_dataset_new.Deepfake(dataset_name=dataset_name,
-                                            train=train,
-                                            data_dir=dataset_folder,
-                                            config=dset_config,
-                                            labels_path=labels_path
-                                            )
+    builder = deepfake_dataset.Deepfake(dataset_name=dataset_name,
+                                        train=train,
+                                        data_dir=dataset_folder,
+                                        config=dset_config,
+                                        labels_path=labels_path,
+                                        audio_modality=FLAGS.use_audio
+                                        )
 
     # Create the tfrecord files (no-op if already exists)
     dl_config = tfds.download.DownloadConfig(verify_ssl=False)
@@ -379,3 +381,18 @@ def mel_spectogram_of_sequence(audio, mel_filters):
                                                        fmax=10000)
     log_mel_spectrogram = tf.math.log(mel_spectrogram + 0.00001)
     return log_mel_spectrogram
+
+
+def union_part_videos(final_dataset):
+    final_dataset['filename_canonized'] = final_dataset['filename'].apply(
+        lambda x: f"{x.split('@')[0].split('.')[0]}.mp4")
+    final_dataset = final_dataset.groupby('filename_canonized').max().reset_index()
+    final_dataset['filename'] = final_dataset['filename_canonized']
+    final_dataset = final_dataset.drop('filename_canonized', axis=1)
+    return final_dataset
+
+
+def get_auc_score(labels, softmax):
+    fpr_keras, tpr_keras, thresholds_keras = roc_curve(labels, softmax)
+    auc_keras = auc(fpr_keras, tpr_keras)
+    return auc_keras

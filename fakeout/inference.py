@@ -10,26 +10,26 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pandas as pd
 import tensorflow_datasets as tfds
 from absl import app
 from absl import flags
 
-from fakeout.config import MLP_LAYERS_NAMES
-from fakeout.data.data_config import DATASET_FOLDER, DATASET_CONFIG, DATASET_MIDFIX, AUDIO_FILES_JSON, \
-    RELATIVE_PATH
+from config import MLP_LAYERS_NAMES
+from data.data_config import DATASET_FOLDER, DATASET_CONFIG, DATASET_MIDFIX, AUDIO_FILES_JSON, \
+    RELATIVE_PATH, DIRECTORY_NAME
 # todo - see if there is a way to overcome this
-from fakeout.data.data_utils import define_usable_audio, get_dummy_data, generate_dataset
-
+from data.data_utils import define_usable_audio, get_dummy_data, generate_dataset, union_part_videos, get_auc_score
 
 # todo - remove
 sys.path.append('/tmp/pycharm_project_793')
 
 # from fakeout import config
-from fakeout.fakeout import config
-from fakeout.models import mm_embeddings
-from fakeout.utils.deepfake_dataset_new import DeepfakeConfig
+import config
+from models import mm_embeddings
+from utils.deepfake_dataset import DeepfakeConfig
 
-# todo - add content to "fakeout/data/DFDC/dfdc_filtered_test.txt" file
+# todo - add content to "fakeout/data/DFDC/filtered_test.txt" file
 
 # TODO - choose relevant resnet path (generic)
 flags.DEFINE_string('checkpoint_path', '/mnt/raid1/home/gili_knn/checkpoint_fakeout_video_audio_tsm_resnet_x2.pkl',
@@ -130,7 +130,7 @@ def load_model(FLAGS):
 
 def main(argv):
     del argv
-    model_config = config.get_model_config(FLAGS.model_path)
+    model_config = config.get_model_config(FLAGS.checkpoint_path)
     params, state = load_model(FLAGS)
     forward = hk.without_apply_rng(hk.transform_with_state(forward_fn))
 
@@ -145,7 +145,9 @@ def main(argv):
                                dataset_name=FLAGS.dataset_name,
                                FLAGS=FLAGS,
                                train=False)
-    dataset_path = os.path.join(dataset_folder, DATASET_MIDFIX, FLAGS.dataset_name)
+    # TODO - change to train in finetune file
+    dataset_path = os.path.join(dataset_folder, DATASET_MIDFIX,
+                                f"ZIP.{dataset_configuration.get(DIRECTORY_NAME)}_test.zip")
     files_in_dir = os.listdir(dataset_path)
     dummy_audio, dummy_word_ids = get_dummy_data(FLAGS)
 
@@ -182,7 +184,15 @@ def main(argv):
     test_labels = np.concatenate(test_labels, axis=0)
     files_names = np.concatenate(files_names, axis=0)
 
-    # TODO - add metrics from notebook
+    pred_test_reshaped = np.reshape(test_softmax, (len(test_labels), -1, FLAGS.num_test_windows))
+    pred_test_smoothed = pred_test_reshaped[:, :, 0:FLAGS.num_test_windows].mean(axis=2)
+    pred_test_smoothed = pred_test_smoothed[:, 0]
+    results_pd = pd.DataFrame(zip(pred_test_smoothed, test_labels, files_names),
+                              columns=['softmax', 'label', 'filename'])
+    results_pd = union_part_videos(results_pd)
+    softmax = results_pd['softmax']
+    labels = results_pd['label']
+    print(f"ROC-AUC score: {round(get_auc_score(labels, softmax) * 100, 1)}")
 
 
 if __name__ == '__main__':
