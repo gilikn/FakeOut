@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import tensorflow_io as tfio
+from sklearn.metrics import auc
 from sklearn.metrics import roc_curve
 
 from data.data_config import WAV_BITRATE, FPS, DATASET_FOLDER, LABELS_PATH
@@ -24,7 +24,6 @@ def define_usable_audio(ex_tfds, files_in_dir, FLAGS, proper_audio_files, train=
             if train:
                 if proper_audio_files is not None:
                     if name.split('.')[0] in proper_audio_files:
-                        # todo - VALIDATE check if the file should really get audio - based on csvs...
                         relevant_indexes.append(i)
             else:
                 offset = FLAGS.num_test_windows * i
@@ -130,25 +129,67 @@ def augment_video(video):
     return video
 
 
-def process_samples(features_dict, FLAGS, num_frames=32, stride=2, is_training=True, num_windows=1, mel_filters=80):
+def resize_smallest(frames: tf.Tensor, min_resize: int) -> tf.Tensor:
+    """Resizes frames so that min(height, width) is equal to min_resize.
+
+    This function will not do anything if the min(height, width) is already equal
+    to min_resize. This allows to save compute time.
+
+    Args:
+      frames: A Tensor of dimension [timesteps, input_h, input_w, channels].
+      min_resize: Minimum size of the final image dimensions.
+    Returns:
+      A Tensor of shape [timesteps, output_h, output_w, channels] of type
+        frames.dtype where min(output_h, output_w) = min_resize.
+    """
+    shape = tf.shape(frames)
+    input_h = shape[1]
+    input_w = shape[2]
+
+    output_h = tf.maximum(min_resize, (input_h * min_resize) // input_w)
+    output_w = tf.maximum(min_resize, (input_w * min_resize) // input_h)
+
+    def resize_fn():
+        frames_resized = tf.image.resize(frames, (output_h, output_w))
+        return tf.cast(frames_resized, frames.dtype)
+
+    should_resize = tf.math.logical_or(tf.not_equal(input_w, output_w),
+                                       tf.not_equal(input_h, output_h))
+    frames = tf.cond(should_resize, resize_fn, lambda: frames)
+
+    return frames
+
+
+def process_samples(features_dict, FLAGS, num_frames=32, is_training=True, num_windows=1, mel_filters=80,
+                    crop_size=224):
     """Process video frames."""
     video = features_dict['video']
     if FLAGS.use_audio:
         audio = features_dict['audio']
     if is_training:
         assert num_windows == 1
-        video = sample_linspace_sequence(video, num_windows, num_frames, stride)
+        video = sample_linspace_sequence(video, num_windows, num_frames)
         if FLAGS.use_audio:
-            audio = mel_spectogram_of_sequence(audio[:, 0][0:int((WAV_BITRATE / FPS) * 32)], mel_filters)
+            audio = mel_spectrogram_of_sequence(audio[:, 0][0:int((WAV_BITRATE / FPS) * 32)], mel_filters)
         video = augment_video(video)
     else:
-        video = sample_linspace_sequence(video, num_windows, num_frames, stride)
+        video = sample_linspace_sequence(video, num_windows, num_frames)
         if FLAGS.use_audio:
             audio = sample_linspace_sequence(audio[:, 0], num_windows, int((WAV_BITRATE / FPS) * 32), stride=1)
             audio = tf.reshape(audio, (-1, int((WAV_BITRATE / FPS) * 32)))
-            audio = alternative_mel_spectrogram_of_sequence(audio, mel_filters)
-            # todo - keep "alternative" just after the results of INFERENCE are the same. change name to not "alternative"
-    # Resize smallest side.
+            audio = mel_spectrogram_of_sequence(audio, mel_filters)
+
+    video = resize_smallest(video, crop_size)
+    if is_training:
+        # Random crop.
+        video = tf.image.random_crop(video, [num_frames, crop_size, crop_size, 3])
+        video = tf.image.resize_with_crop_or_pad(video, crop_size, crop_size)
+    else:
+        # Central crop.
+        video = tf.image.resize_with_crop_or_pad(video, crop_size, crop_size)
+
+    video = tf.cast(video, tf.float32)
+
     video = tf.cast(video, tf.float32)
     video /= 255.0  # Set between [0, 1].
 
@@ -293,7 +334,7 @@ def random_sample_sequence(sequence: tf.Tensor,
 def sample_linspace_sequence(sequence: tf.Tensor,
                              num_windows: int,
                              num_steps: int,
-                             stride: int = 1) -> tf.Tensor:
+                             stride: int = 2) -> tf.Tensor:
     """Samples num_windows segments from sequence with linearly spaced offsets.
 
     The samples are concatenated in a single Tensor in order to have the same
@@ -354,7 +395,7 @@ def power_to_db(magnitude, amin=1e-16, top_db=80.0):
     return log_spec
 
 
-def alternative_mel_spectrogram_of_sequence(audio, mel_filters):
+def mel_spectrogram_of_sequence(audio, mel_filters):
     mel_filterbank = tf.signal.linear_to_mel_weight_matrix(
         num_mel_bins=mel_filters,
         num_spectrogram_bins=2048 // 2 + 1,
@@ -372,15 +413,6 @@ def alternative_mel_spectrogram_of_sequence(audio, mel_filters):
 
     log_mel_spectrograms = power_to_db(mel_spectrograms)
     return log_mel_spectrograms
-
-
-# TODO - RETURN TO NORMAL
-def mel_spectogram_of_sequence(audio, mel_filters):
-    spectrogram = tfio.experimental.audio.spectrogram(audio, nfft=2048, window=2048, stride=256)
-    mel_spectrogram = tfio.experimental.audio.melscale(spectrogram, rate=WAV_BITRATE, mels=mel_filters, fmin=0,
-                                                       fmax=10000)
-    log_mel_spectrogram = tf.math.log(mel_spectrogram + 0.00001)
-    return log_mel_spectrogram
 
 
 def union_part_videos(final_dataset):

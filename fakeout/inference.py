@@ -1,8 +1,20 @@
-# TODO - insert Apache license of MMV and ours
+# Copyright 2020 DeepMind Technologies Limited.
+#
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import json
 import os
 import pickle
-import sys
 from os import path
 from typing import Any, Dict
 
@@ -15,44 +27,23 @@ import tensorflow_datasets as tfds
 from absl import app
 from absl import flags
 
+# from fakeout import config
+import config
 from config import MLP_LAYERS_NAMES
 from data.data_config import DATASET_FOLDER, DATASET_CONFIG, DATASET_MIDFIX, AUDIO_FILES_JSON, \
     RELATIVE_PATH, DIRECTORY_NAME
-# todo - see if there is a way to overcome this
 from data.data_utils import define_usable_audio, get_dummy_data, generate_dataset, union_part_videos, get_auc_score
-
-# todo - remove
-sys.path.append('/tmp/pycharm_project_793')
-
-# from fakeout import config
-import config
 from models import mm_embeddings
 from utils.deepfake_dataset import DeepfakeConfig
 
-# todo - add content to "fakeout/data/DFDC/filtered_test.txt" file
-
-# TODO - choose relevant resnet path (generic)
-flags.DEFINE_string('checkpoint_path', '/mnt/raid1/home/gili_knn/checkpoint_fakeout_video_audio_tsm_resnet_x2.pkl',
-                    'The path to load the pre-trained weights from.')
-flags.DEFINE_string('dataset_name', 'dfdc',
-                    'The directory with the challenge dataset.')
-flags.DEFINE_integer('eval_batch_size', 1,
-                     'The batch size for evaluation.')
-# TODO - put it in finetune.py only
-# flags.DEFINE_integer('train_batch_size', 2,
-#                      'The batch size for training.')
-# TODO - put it in finetune.py only
-# flags.DEFINE_integer('num_train_epochs', 6,
-#                      'How many epochs to collect features during training.')
-flags.DEFINE_integer('num_test_windows', 9,
-                     'How many windows to average on during test.')
-flags.DEFINE_integer('num_frames', 32,
-                     'Number of video frames.')
+flags.DEFINE_string('checkpoint_path', '', 'The path to load the pre-trained weights from.')
+flags.DEFINE_string('dataset_name', 'dfdc', 'The directory with the challenge dataset.')
+flags.DEFINE_integer('eval_batch_size', 1, 'The batch size for evaluation.')
+flags.DEFINE_integer('num_test_windows', 5, 'How many windows to average on during test.')
+flags.DEFINE_integer('num_frames', 32, 'Number of video frames.')
+flags.DEFINE_integer('mlp_first_layer_size', 6144, 'First layer size of MLP classifier.')
+flags.DEFINE_integer('mel_filters', 80, 'Number of mel filters for audio modality.')
 flags.DEFINE_bool('use_audio', True, 'Whether to use audio in current run or not')
-flags.DEFINE_integer('mlp_first_layer_size', 6144,
-                     'First layer size of MLP classifier.')
-flags.DEFINE_integer('mel_filters', 80,
-                     'Number of mel filters for audio modality.')
 
 FLAGS = flags.FLAGS
 
@@ -108,7 +99,6 @@ def forward_fn(images: jnp.ndarray,
                           audio_spectrogram=audio_spectrogram,
                           word_ids=word_ids,
                           is_training=is_training,
-                          # return_intermediate_audio=True
                           )
 
     if FLAGS.use_audio:
@@ -132,6 +122,8 @@ def main(argv):
     del argv
     model_config = config.get_model_config(FLAGS.checkpoint_path)
     params, state = load_model(FLAGS)
+    with open(f"/mnt/raid1/home/gili_knn/params_fakeout_video_audio_tsm_resnet_x2.pkl", "rb") as f:
+        params = pickle.load(f)
     forward = hk.without_apply_rng(hk.transform_with_state(forward_fn))
 
     dataset_configuration = DATASET_CONFIG.get(FLAGS.dataset_name, None)
@@ -145,7 +137,6 @@ def main(argv):
                                dataset_name=FLAGS.dataset_name,
                                FLAGS=FLAGS,
                                train=False)
-    # TODO - change to train in finetune file
     dataset_path = os.path.join(dataset_folder, DATASET_MIDFIX,
                                 f"ZIP.{dataset_configuration.get(DIRECTORY_NAME)}_test.zip")
     files_in_dir = os.listdir(dataset_path)
@@ -159,10 +150,12 @@ def main(argv):
         proper_audio_files = None
 
     test_labels, files_names, test_softmax = [], [], []
+
+    print("Starting inference process...")
     for test_chunk in test_ds:
         test_chunk_tfds = tfds.as_numpy(test_chunk)
         if FLAGS.use_audio:
-            audio = define_usable_audio(test_chunk_tfds, files_in_dir, FLAGS, proper_audio_files)
+            audio = define_usable_audio(test_chunk_tfds, files_in_dir, FLAGS, proper_audio_files, train=False)
         else:
             audio = dummy_audio
         file_name = test_chunk_tfds['path'][0].decode('utf-8')
@@ -184,7 +177,7 @@ def main(argv):
     test_labels = np.concatenate(test_labels, axis=0)
     files_names = np.concatenate(files_names, axis=0)
 
-    pred_test_reshaped = np.reshape(test_softmax, (len(test_labels), -1, FLAGS.num_test_windows))
+    pred_test_reshaped = np.reshape(test_softmax[:, 1], (len(test_labels), -1, FLAGS.num_test_windows))
     pred_test_smoothed = pred_test_reshaped[:, :, 0:FLAGS.num_test_windows].mean(axis=2)
     pred_test_smoothed = pred_test_smoothed[:, 0]
     results_pd = pd.DataFrame(zip(pred_test_smoothed, test_labels, files_names),
@@ -192,6 +185,8 @@ def main(argv):
     results_pd = union_part_videos(results_pd)
     softmax = results_pd['softmax']
     labels = results_pd['label']
+
+    print("FakeOut evaluation:")
     print(f"ROC-AUC score: {round(get_auc_score(labels, softmax) * 100, 1)}")
 
 

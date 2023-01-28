@@ -46,8 +46,6 @@ VIDEOS_PATH = ("{RELATIVE_PATH}/tmp/downloads/extracted/ZIP.{DIRECTORY_NAME}_{sp
 _LABELS_PATH = f"fakeout/data/labels.txt"
 
 
-# TODO - make sure every path from server is deleted (gili_knn, tmp, ~, etc)
-
 class DeepfakeConfig(tfds.core.BuilderConfig):
     """"Configuration for Deepfake split and possible video rescaling."""
 
@@ -166,7 +164,6 @@ class Deepfake(tfds.core.GeneratorBasedBuilder):
                 logging.error(f'Example {video_path} not found')
                 continue
             file_name = path.split('.')[0].split('@')[0].split('#')[0]
-            # TODO - validate logic
             if self.audio_modality:
                 if self.train:
                     if self.proper_audio_files is not None:

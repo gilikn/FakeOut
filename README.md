@@ -10,7 +10,7 @@ This is a Haiku & Jax implementation of the <i>FakeOut</i> paper.
 <p> 
 </p>
 <div align="center">
-<img src="fakeout/images/Architecture.svg" alt="architecture"></img>
+<img src="fakeout/images/architecture.svg" alt="architecture"></img>
 </div>
 <p> 
 </p>
