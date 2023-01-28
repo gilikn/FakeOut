@@ -122,8 +122,6 @@ def main(argv):
     del argv
     model_config = config.get_model_config(FLAGS.checkpoint_path)
     params, state = load_model(FLAGS)
-    with open(f"/mnt/raid1/home/gili_knn/params_fakeout_video_audio_tsm_resnet_x2.pkl", "rb") as f:
-        params = pickle.load(f)
     forward = hk.without_apply_rng(hk.transform_with_state(forward_fn))
 
     dataset_configuration = DATASET_CONFIG.get(FLAGS.dataset_name, None)
