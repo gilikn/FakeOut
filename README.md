@@ -19,7 +19,7 @@ The figure above describes the two parts of <i>FakeOut</i>. On the left is the p
 
 ## Setup
 
-Prepare the videos of the desired dataset in train, val, test dedicated directories. 
+Arrange the videos of the desired dataset in train, val, test dedicated directories. 
 Run our face tracking pipeline as documented in the [FacePipe](https://github.com/gilikn/FacePipe) repo.
 
 To use FakeOut, first clone the repo:
