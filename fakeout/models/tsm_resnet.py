@@ -27,8 +27,8 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from fakeout.models import tsm_utils as tsmu
-from fakeout.models import types
+from models import tsm_utils as tsmu
+from models import types
 
 
 class TSMResNetBlock(hk.Module):

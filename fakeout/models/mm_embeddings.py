@@ -22,10 +22,10 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from fakeout.models import normalization
-from fakeout.models import resnet
-from fakeout.models import s3d
-from fakeout.models import tsm_resnet
+from models import normalization
+from models import resnet
+from models import s3d
+from models import tsm_resnet
 
 
 _DEFAULT_CFG_AUDTXT = {

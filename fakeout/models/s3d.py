@@ -22,7 +22,7 @@ import haiku as hk
 import jax
 from jax import numpy as jnp
 
-from fakeout.models import types
+from models import types
 
 
 class _MaxPool(hk.MaxPool):

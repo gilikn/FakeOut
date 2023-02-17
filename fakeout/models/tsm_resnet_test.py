@@ -22,7 +22,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from fakeout.models import tsm_resnet
+from models import tsm_resnet
 
 
 class TSMResNetTest(parameterized.TestCase):

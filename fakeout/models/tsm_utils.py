@@ -20,7 +20,7 @@ from typing import Tuple
 import jax
 import jax.numpy as jnp
 
-from fakeout.models import types
+from models import types
 
 
 def prepare_inputs(

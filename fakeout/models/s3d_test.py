@@ -22,8 +22,8 @@ import haiku as hk
 import jax
 import numpy as np
 
-from fakeout.models import normalization
-from fakeout.models import s3d
+from models import normalization
+from models import s3d
 
 
 class _CallableS3D:

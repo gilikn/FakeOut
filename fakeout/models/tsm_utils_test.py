@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import jax.numpy as jnp
 import numpy as np
 
-from fakeout.models import tsm_utils
+from models import tsm_utils
 
 
 class TsmUtilsTest(parameterized.TestCase):

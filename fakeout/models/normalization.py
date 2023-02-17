@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional, Sequence, Union
 import haiku as hk
 from jax import numpy as jnp
 
-from fakeout.models import types
+from models import types
 
 
 class _BatchNorm(hk.BatchNorm):

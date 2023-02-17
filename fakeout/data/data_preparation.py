@@ -18,9 +18,8 @@ FLAGS = flags.FLAGS
 
 
 def generate_directories(dataset_directory_name):
-    subprocess.call(
-        f'mkdir -p tmp/downloads/extracted/ZIP.train_test_split.zip',
-        cwd=dataset_directory_name, shell=True)
+    subprocess.call(f'mkdir -p tmp/downloads/extracted/ZIP.train_test_split.zip', cwd=dataset_directory_name,
+                    shell=True)
     return
 
 
